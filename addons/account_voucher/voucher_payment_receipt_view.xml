@@ -318,8 +318,13 @@
                         <group>
                             <field name="date" invisible="context.get('line_type', False)" on_change="onchange_date(date, currency_id, payment_rate_currency_id, amount, company_id, context)"/>
                             <field name="period_id"/>
+                            <!--[WZ0001 Starts]
                             <field name="reference" invisible="context.get('line_type', False)" string="Payment Ref" placeholder="e.g. 003/10"/>
                             <field name="name" invisible="context.get('line_type', False)" placeholder="e.g. Invoice SAJ/0042"/>
+                            --> 
+                            <field name="reference" invisible="context.get('line_type', False)" string="Payment Ref" placeholder="转账方式：微信支付、支付宝" required="1"/>
+                            <field name="name" invisible="context.get('line_type', False)" placeholder="转帐单号" required="1"/>
+                            <!--[WZ0001 Ends] -->
                             <field name="company_id" widget="selection" groups="base.group_multi_company"/>
 
                             <field name="account_id"

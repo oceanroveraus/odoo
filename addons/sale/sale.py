@@ -614,7 +614,21 @@ class sale_order(osv.osv):
         context = context or {}
         for o in self.browse(cr, uid, ids):
             if not any(line.state != 'cancel' for line in o.order_line):
-                raise osv.except_osv(_('Error!'),_('You cannot confirm a sales order which has no line.'))
+                raise osv.except_osv(_('Error!'),_('You cannot confirm a sales order which has no line.'))              
+            #### [WZ0001 - Starts] ####
+            if o.margin<0.0:
+                raise osv.except_osv(_('Error!'),_('You cannot confirm a sales order which has Margin value less than 0.'))  
+            total_weight = 0.0;
+            has_1kg_delivery_fee = False;     
+            prod_obj = self.pool.get('product.product')      
+            for line in o.order_line: 
+                total_weight += line.th_weight    
+                prod = prod_obj.browse(cr, uid, line.product_id.id)            
+                if '1KG Delivery Fee' == prod.name_template:
+                    has_1kg_delivery_fee = True
+            if total_weight <= 1.0 and has_1kg_delivery_fee == False:
+                raise osv.except_osv(_('Error!'),_('"1KG Delivery Fee" is required if Package Weight is less than 1.0 KG.\nCurrent Package Weight: %s KG')%total_weight)            
+            #### [WZ0001 - Ends  ] ####
             noprod = self.test_no_product(cr, uid, o, context)
             if (o.order_policy == 'manual') or noprod:
                 self.write(cr, uid, [o.id], {'state': 'manual', 'date_confirm': fields.date.context_today(self, cr, uid, context=context)})
