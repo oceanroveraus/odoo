@@ -76,7 +76,12 @@
             <field name="wkf_id" ref="wkf_sale"/>
             <field name="name">invoice_end</field>
             <field name="kind">function</field>
+            <!-- [WZ0001 Starts]
             <field name="action">action_invoice_end()</field>
+            -->
+            <field name="action">action_invoice_end()
+action_commission_create()</field>
+            <!-- [WZ0001 Ends] -->
         </record>
         <record id="act_invoice_cancel" model="workflow.activity">
             <field name="wkf_id" ref="wkf_sale"/>

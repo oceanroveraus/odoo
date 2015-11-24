@@ -681,7 +681,11 @@
                             <separator string="Stock Moves" attrs="{'invisible': [('pack_operation_exist', '=', False)]}"/>
                             <field name="move_lines" context="{'address_in_id': partner_id, 'form_view_ref':'stock.view_move_picking_form', 'tree_view_ref':'stock.view_move_picking_tree', 'default_picking_type_id': picking_type_id,'default_picking_id': active_id}"/>
                             <field name="pack_operation_exist" invisible="1"/>
+                            <!-- [WZ0001 Starts] 
                             <field name="note" placeholder="Add an internal note..." class="oe_inline"/>
+                            -->
+                            <field name="note" placeholder="Add tracking information..." class="oe_inline" required='1'/>
+                            <!-- [WZ0001 Ends] -->
                         </page>
                         <page string="Operations" attrs="{'invisible': ['|', ('state','!=','done'), ('pack_operation_ids','=',[])]}">
                             <field name="pack_operation_ids" context="{'default_picking_id': active_id, 'default_location_id': location_id, 'default_location_dest_id': location_dest_id}">
@@ -1192,7 +1196,6 @@
                     <field name="date" widget="date"/>
                     <field name="picking_id" string="Reference" invisible="1"/>
                     <field name="origin"/>
-                    <field name="partner_id" string="Supplier"/>
                     <field name="product_id"/>
                     <field name="product_uom_qty"/>
                     <field name="product_uom" string="Unit of Measure" groups="product.group_uom"/>

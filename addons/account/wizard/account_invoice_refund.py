@@ -20,7 +20,9 @@
 ##############################################################################
 
 import time
-
+### [WZ0001 - Starts]
+from openerp import SUPERUSER_ID
+### [WZ0001 - Ends]
 from openerp.osv import fields, osv
 from openerp.tools.translate import _
 from openerp.tools.safe_eval import safe_eval as eval
@@ -228,9 +230,75 @@ class account_invoice_refund(osv.osv_memory):
             return result
 
     def invoice_refund(self, cr, uid, ids, context=None):
-        data_refund = self.read(cr, uid, ids, ['filter_refund'],context=context)[0]['filter_refund']
+        ### [WZ0001 - Starts]       
+        ##  Create Commission Refund
+        self.action_commission_refund_create(cr, uid, ids, context=context)
+        ### [WZ0001 - Ends]
+        data_refund = self.read(cr, uid, ids, ['filter_refund'], context=context)[0]['filter_refund']
         return self.compute_refund(cr, uid, ids, data_refund, context=context)
+    
+    ### [WZ0001 - Starts]       
+    ##  Create Commission Refund
+    def _make_expense_values_from_invoice(self, cr, uid, ids, inv, context=None):
+        res = {'name':"Commission Refund",
+               'date':inv.date_invoice,
+               'employee_id': self._get_employee_id_by_user_id(cr, uid, ids, inv.user_id.id),
+               'user_id':SUPERUSER_ID,
+               'line_ids':[],
+               'company_id':inv.company_id.id,
+               'state':'draft'         
+                }        
+        return res
+    
+    def _make_expense_line_values_from_invoice(self, cr, uid, ids, expense_id, inv, context=None):
+        
+        sale_order_obj = self.pool.get('sale.order')
+        sale_order_id = sale_order_obj.search(cr, uid,[('name', '=', inv.origin)], context=context)[0]
+        unit_amount  = sale_order_obj.browse(cr, uid, sale_order_id, context=context)[0].margin*-1
+        
+        product_name = 'Commission Refund'
+        product_obj = self.pool.get('product.product')
+        product_id = product_obj.search(cr, uid,[('name', '=', product_name)], context=context)[0]        
 
+        res = {'name':"Commission Refund",
+               'date_value':inv.date_invoice,
+               'expense_id':expense_id,
+               'description':"Commission Refund",
+               'unit_amount':unit_amount,
+               'product_id':product_id,
+               'unit_quantity':1,
+               'date':inv.date_invoice,
+               'ref':inv.origin,  
+                }
+        return res
+    
+    def _get_employee_id_by_user_id(self, cr, uid, ids, user_id, context=None):
+        return self.pool.get('hr.employee').search(cr, uid, [('user_id', '=', user_id)], context=context)[0]
+    
 
+    def action_commission_refund_create(self, cr, uid, ids, context=None):
+        journal_obj = self.pool.get('account.journal')
+        journal_ids = journal_obj.search(cr, uid, [('code', '=', "SCNJ")], limit = 1, context=context)        
+        if journal_ids:
+            journal_id = journal_ids[0]            
+            expense_obj = self.pool.get('hr.expense.expense')    
+            expense_line_obj = self.pool.get('hr.expense.line')
+            for invoice_refund in self.browse(cr, uid, ids, context=context):              
+                if invoice_refund.journal_id.id == journal_id:
+                    active_id = context and context.get('active_id', False)
+                    invoice = self.pool.get('account.invoice').browse(cr, uid, active_id, context=context)[0]             
+                    employee_id = self._get_employee_id_by_user_id(cr, uid, ids, invoice.user_id.id, context=context)            
+                    if not employee_id:
+                        raise osv.except_osv(_('Warning'), _('No Employee ID found for current Sales Person.'))
+                    expense_ids = expense_obj.search(cr, uid, [('employee_id', '=', employee_id), ('state', '=', 'draft')], limit = 1, context=context)            
+                    if expense_ids:
+                        expense_id = expense_ids[0]             
+                    else:
+                        expense_vals = self._make_expense_values_from_invoice(cr, uid, ids, invoice, context=context)
+                        expense_id = expense_obj.create(cr, uid, expense_vals, context=context)                
+                    expense_line_vals = self._make_expense_line_values_from_invoice(cr, uid, ids, expense_id, invoice, context=context)
+                    expense_line_obj.create(cr, uid, expense_line_vals, context=context)
+        return True
+    ### [WZ0001 - Ends]
 
 # vim:expandtab:smartindent:tabstop=4:softtabstop=4:shiftwidth=4:

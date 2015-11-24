@@ -307,7 +307,11 @@
                     <button name="invoice_open" states="draft" string="Validate" class="oe_highlight" groups="base.group_user"/>
                     <button name="invoice_open" states="proforma2" string="Validate" groups="base.group_user"/>
                     <button name="invoice_proforma2" states="draft" string="PRO-FORMA" groups="account.group_proforma_invoices"/>
+                 <!-- [WZ0001 Starts]
                     <button name="%(action_account_invoice_refund)d" type='action' string='Refund Invoice' states='open,proforma2,paid' groups="base.group_user"/>
+                 -->
+                    <button name="%(action_account_invoice_refund)d" type='action' string='Refund Invoice' states='proforma2,paid' groups="base.group_user"/>
+                 <!-- [WZ0001 Ends] -->
                     <button name="invoice_cancel" states="draft,proforma2,open" string="Cancel Invoice" groups="base.group_no_one"/>
                     <button name="action_cancel_draft" states="cancel" string="Reset to Draft" type="object" groups="base.group_user"/>
                     <button name='%(action_account_state_open)d' type='action' string='Re-Open' groups="account.group_account_invoice" attrs="{'invisible':['|', ('state','&lt;&gt;','paid'), ('reconciled', '=', True)]}" help="This button only appears when the state of the invoice is 'paid' (showing that it has been fully reconciled) and auto-computed boolean 'reconciled' is False (depicting that it's not the case anymore). In other words, the invoice has been dereconciled and it does not fit anymore the 'paid' state. You should press this button to re-open it and let it continue its normal process after having resolved the eventual exceptions it may have created."/>

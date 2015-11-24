@@ -354,6 +354,48 @@ class sale_order(osv.osv):
         if sale_note: val.update({'note': sale_note})  
         return {'value': val}
 
+    ### [WZ0001 Starts]
+    def _check_margin(self, cr, uid, ids, context=None):
+        for o in self.browse(cr, uid, ids, context=context):
+            total_margin = 0.0
+            for line in o.order_line: 
+                total_margin += line.price_subtotal - ((line.purchase_price or line.product_id.standard_price) * line.product_uos_qty)
+            if total_margin < 0.0:
+                return False
+        return True
+    
+    def _check_weight(self, cr, uid, ids, context=None):
+        for o in self.browse(cr, uid, ids, context=context):
+            total_weight = 0.0;
+            has_1kg_delivery_fee = False;     
+            prod_obj = self.pool.get('product.product')
+            STR_DELIVERY_FEE = '1KG Delivery Fee'
+            for line in o.order_line: 
+                total_weight += line.th_weight    
+                prod = prod_obj.browse(cr, uid, line.product_id.id)                            
+                if STR_DELIVERY_FEE == prod.name_template:
+                    if has_1kg_delivery_fee == True:
+                        # raise osv.except_osv(_('Invalid Action!'),_('"%s" is required only once.')%STR_DELIVERY_FEE)
+                        return False
+                    else:
+                        has_1kg_delivery_fee = True                    
+            if total_weight < 1.0 and has_1kg_delivery_fee == False:
+                # raise osv.except_osv(_('Invalid Action!'),_('"%s" is required if Package Weight is less than 1.0 KG.\nCurrent Package Weight: %s KG')%(STR_DELIVERY_FEE, total_weight))
+                return False
+            if total_weight >= 1.0 and has_1kg_delivery_fee == True:
+                # raise osv.except_osv(_('Invalid Action!'),_('Please remove "%s" as the current Package Weight is not less than 1.0 KG.\nCurrent Package Weight: %s KG')%(STR_DELIVERY_FEE, total_weight))      
+                return False
+            if total_weight > 5.0:
+                # raise osv.except_osv(_('Invalid Action!'),_('Please remove "%s" as the current Package Weight is not less than 1.0 KG.\nCurrent Package Weight: %s KG')%(STR_DELIVERY_FEE, total_weight))      
+                return False
+        return True
+
+    _constraints = [
+        (_check_margin, 'Error!\nYou cannot confirm a sales order which has Margin value less than 0.', ['order_line']),
+        (_check_weight, 'Error!\n"1KG Delivery Fee"', ['order_line'])
+    ]
+    ### [WZ0001 Ends]
+
     def create(self, cr, uid, vals, context=None):
         if context is None:
             context = {}
@@ -583,7 +625,62 @@ class sale_order(osv.osv):
             if this.state == 'invoice_except':
                 this.write({'state': 'progress'})
         return True
+    
+    ### [WZ0001 - Starts]       
+    ##  Create Expense lines by Order
+    def _make_expense_values_from_sale_order(self, cr, uid, ids, order, context=None):
+        res = {'name':"Commission",
+               'date':order.date_confirm,
+               'employee_id': self._get_employee_id_by_user_id(cr, uid, ids, order.user_id.id),
+               'user_id':SUPERUSER_ID,
+               'line_ids':[],
+               'company_id':order.company_id.id,
+               'state':'draft'         
+                }        
+        return res
+    
+    def _make_expense_line_values_from_sale_order(self, cr, uid, ids, expense_id, order, context=None):
+        
+        unit_amount  = order.margin
+        
+        product_name = 'Commission'
+        product_obj = self.pool.get('product.product')
+        product_id = product_obj.search(cr, uid,[('name', '=', product_name)], context=context)[0]        
 
+        res = {'name':"Commission",
+               'date_value':order.date_confirm,
+               'expense_id':expense_id,
+               'description':"Commission",
+               'unit_amount':unit_amount,
+               'product_id':product_id,
+               'unit_quantity':1,
+               'date':order.date_confirm,
+               'ref':order.name,  
+                }
+        return res
+    
+    def _get_employee_id_by_user_id(self, cr, uid, ids, user_id, context=None):
+        return self.pool.get('hr.employee').search(cr, uid, [('user_id', '=', user_id)], context=context)[0]
+    
+
+    def action_commission_create(self, cr, uid, ids, context=None):
+        expense_obj = self.pool.get('hr.expense.expense')    
+        expense_line_obj = self.pool.get('hr.expense.line')
+        for order in self.browse(cr, uid, ids, context=context):              
+            employee_id = self._get_employee_id_by_user_id(cr, uid, ids, order.user_id.id, context=context)
+            if not employee_id:
+                raise osv.except_osv(_('Warning'), _('No Employee ID found for current Sales Person.'))
+            expense_ids = expense_obj.search(cr, uid, [('employee_id', '=', employee_id), ('state', '=', 'draft')], limit = 1, context=context)            
+            if expense_ids:
+                expense_id = expense_ids[0]             
+            else:
+                expense_vals = self._make_expense_values_from_sale_order(cr, uid, ids, order, context=context)
+                expense_id = expense_obj.create(cr, uid, expense_vals, context=context)                
+            expense_line_vals = self._make_expense_line_values_from_sale_order(cr, uid, ids, expense_id, order, context=context)
+            expense_line_obj.create(cr, uid, expense_line_vals, context=context)
+        return True
+    ### [WZ0001 - Ends]
+    
     def action_cancel(self, cr, uid, ids, context=None):
         if context is None:
             context = {}
@@ -614,21 +711,7 @@ class sale_order(osv.osv):
         context = context or {}
         for o in self.browse(cr, uid, ids):
             if not any(line.state != 'cancel' for line in o.order_line):
-                raise osv.except_osv(_('Error!'),_('You cannot confirm a sales order which has no line.'))              
-            #### [WZ0001 - Starts] ####
-            if o.margin<0.0:
-                raise osv.except_osv(_('Error!'),_('You cannot confirm a sales order which has Margin value less than 0.'))  
-            total_weight = 0.0;
-            has_1kg_delivery_fee = False;     
-            prod_obj = self.pool.get('product.product')      
-            for line in o.order_line: 
-                total_weight += line.th_weight    
-                prod = prod_obj.browse(cr, uid, line.product_id.id)            
-                if '1KG Delivery Fee' == prod.name_template:
-                    has_1kg_delivery_fee = True
-            if total_weight <= 1.0 and has_1kg_delivery_fee == False:
-                raise osv.except_osv(_('Error!'),_('"1KG Delivery Fee" is required if Package Weight is less than 1.0 KG.\nCurrent Package Weight: %s KG')%total_weight)            
-            #### [WZ0001 - Ends  ] ####
+                raise osv.except_osv(_('Error!'),_('You cannot confirm a sales order which has no line.'))
             noprod = self.test_no_product(cr, uid, o, context)
             if (o.order_policy == 'manual') or noprod:
                 self.write(cr, uid, [o.id], {'state': 'manual', 'date_confirm': fields.date.context_today(self, cr, uid, context=context)})
