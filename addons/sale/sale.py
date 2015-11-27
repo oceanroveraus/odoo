@@ -392,7 +392,7 @@ class sale_order(osv.osv):
 
     _constraints = [
         (_check_margin, 'Error!\nYou cannot confirm a sales order which has Margin value less than 0.', ['order_line']),
-        (_check_weight, 'Error!\n1)Please add item “1KG Delivery Fee” if the total weight is less than 1 KG;\n2）Please remove the “1KG Delivery Fee” if the total weight exceeds 1 KG;\n3）Please create a new Sale Order if the total weight exceeds 5 KG', ['order_line'])
+        (_check_weight, 'Error!\n1)Please add item “1KG Delivery Fee” if the total weight is less than 1 KG;\n2)Please remove the “1KG Delivery Fee” if the total weight exceeds 1 KG;\n3)Please create a new Sale Order if the total weight exceeds 5 KG', ['order_line'])
     ]
     ### [WZ0001 Ends]
 
