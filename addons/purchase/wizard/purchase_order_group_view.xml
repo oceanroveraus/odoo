@@ -27,7 +27,7 @@ Lines will only be merged if: &#10;
                 </form>
             </field>
         </record>
-
+<!-- [WZ0001]
         <act_window name="Merge Purchase orders"
             context="{'search_default_draft': 1, 'search_default_approved': False}"
             res_model="purchase.order.group"
@@ -37,7 +37,7 @@ Lines will only be merged if: &#10;
             multi="True"
             key2="client_action_multi"
             id="action_view_purchase_order_group"/>
-
+ -->
     </data>
 </openerp>
 
