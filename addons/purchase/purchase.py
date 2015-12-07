@@ -1388,7 +1388,11 @@ class procurement_order(osv.osv):
         ''' returns the main supplier of the procurement's product given as argument'''
         supplierinfo = self.pool['product.supplierinfo']
         company_supplier = supplierinfo.search(cr, uid,
-            [('product_tmpl_id', '=', procurement.product_id.product_tmpl_id.id), ('company_id', '=', procurement.company_id.id)], limit=1, context=context)
+            [('product_tmpl_id', '=', procurement.product_id.product_tmpl_id.id), ('company_id', '=', procurement.company_id.id)
+             ### [WZ0001 Starts]
+             , ('name.parent_id', '=', procurement.create_uid.partner_id.parent_id.id)
+             ### [WZ0001 Ends]
+             ], limit=1, context=context)
         if company_supplier:
             return supplierinfo.browse(cr, uid, company_supplier[0], context=context).name
         return procurement.product_id.seller_id
