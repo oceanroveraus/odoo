@@ -1395,6 +1395,18 @@ class procurement_order(osv.osv):
              ], limit=1, context=context)
         if company_supplier:
             return supplierinfo.browse(cr, uid, company_supplier[0], context=context).name
+        ### [WZ0001 Starts]
+        else:
+            partners = self.pool.get('res.partner')
+            # if no product supplier provided then search for current user's company Supplier
+            current_user = self.pool.get('res.users').browse(cr, uid, uid, context=context)
+            default_supplier = partners.search(cr, uid, [('is_company', '=', True), ('supplier', '=', True), ('id', '=', current_user.partner_id.parent_id.id)], limit=1, context=context)
+            # if user has no company then use System Default Supplier
+            if not default_supplier:
+                default_supplier = partners.search(cr, uid, [('is_company', '=', True), ('supplier', '=', True), ('user_id', '=', SUPERUSER_ID)], limit=1, context=context)
+            if default_supplier:
+                return partners.browse(cr, uid, default_supplier[0], context=context)
+        ### [WZ0001 Ends]
         return procurement.product_id.seller_id
 
     def _get_po_line_values_from_proc(self, cr, uid, procurement, partner, company, schedule_date, context=None):
